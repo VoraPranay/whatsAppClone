@@ -1,0 +1,7 @@
+- alias: hasura
+  config:
+    configmap: controller-conf
+    namespace: caret76-hasura
+  data: null
+  kubeContext: caret76
+  name: caret76
