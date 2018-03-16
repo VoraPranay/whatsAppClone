@@ -1,77 +1,280 @@
-import React, { Component } from "react";
-import {  StyleSheet, View,Image,StatusBar } from "react-native";
-import {Item,Input,Icon,Left,Right,Thumbnail, Body,Container,Content,Header,Footer ,Text, Button,H2,Title } from "native-base";
+import React, { Component } from 'react';
+import {Keyboard, TextInput, StyleSheet, AsyncStorage} from 'react-native';
+import { Container, Header, Content, Text, Left, Button, Body, Thumbnail, Title, View, Icon } from 'native-base';
+import SocketIOClient from 'socket.io-client';
+import MessageBubble from './Message';
+import { getAllMessages, updateRecdTime } from './Codeapi';
 
-var backgroundImage = require('./assets/wallpaper.jpg')
+const imageurl = 'https://filestore.alluvial22.hasura-app.io/v1/file/';
+const { EmojiOverlay } = require('react-native-emoji-picker');
 
+let user;
 
-class Chatscreen extends Component {
+export default class ChatScreen extends Component {
+  constructor(props) {
+    super(props);
+    this.onReceivedPrevMessages = this.onReceivedPrevMessages.bind(this);
+    console.ignoredYellowBox = [
+      'Setting a timer'
+    ];
+    this.state = {
+      user,
+      user_id: this.props.navigation.state.params.user_id,
+      friend: this.props.navigation.state.params.friend,
+      showPicker: false,
+      messages: [],
+      value: '',
+      height: 40
+    };
+    
+    this.socket = SocketIOClient('https://app.alluvial22.hasura-app.io/', { transports: ['websocket'] });
+    console.log(this.socket);
+    this.socket.on('message', this.onReceivedMessage);
 
-  async componentWillMount() {
-    await Expo.Font.loadAsync({
-      'Roboto': require('native-base/Fonts/Roboto.ttf'),
-      'Roboto_medium': require('native-base/Fonts/Roboto_medium.ttf'),
-    });
+    this.joinUser = this.joinUser.bind(this);
+    this.onReceivedMessage = this.onReceivedMessage.bind(this);
+    this.sendMessage.bind(this);
   }
 
-  
+  componentWillMount() {
+      this.onReceivedPrevMessages();
+  }
 
-  static navigationOptions = {
-    title: 'User name',
-    header: null,
-    headerStyle:{ backgroundColor: 'white'},
-    headerTitleStyle:{ color: 'green'},
+  componentDidMount() {
+    this.joinUser();
+  }
+
+  componentWillUnmount() {
+    this.socket.disconnect();
+  }
+
+  onReceivedPrevMessages = async () => {
+    const prevMessages = [];
+
+    console.log('friendid');
+    const friendid = this.state.friend.user_id;
+    console.log(friendid);
+    const response = await getAllMessages(this.state.user_id, this.state.friend.user_id);
+    //skipping first row 
+    for (let i = 1; i < response.result.length; i++) {
+      prevMessages.push({
+        msg_text: response.result[i][1],
+        sent_time: response.result[i][2],
+        recd_time: response.result[i][3],
+        sender_id: response.result[i][4],
+        receiver_id: response.result[i][5],
+        user_id: response.result[i][4]
+    });
     }
+    console.log(prevMessages);
+    this.setState({ messages: prevMessages });
+  }
 
-render(){
-
-
-return (
-
-<Container>
-
-<Header style={{backgroundColor:'green'}}>
-<Left>
-<Button transparent onPress={() => this.props.navigation.goBack()}>
-              <Icon name="arrow-back" style={{color: 'blue'}} />
- </Button>
- <Thumbnail source={require('./assets/wallpaper.jpg')} />
- </Left>
-<Body>
-  <Title style={{color:'white'}}>user name</Title>
-</Body>
-<Right />
-</Header>
-
-   <View style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '100%' }}>
-      <Image source={backgroundImage} style={{ flex: 1, height: null, width: null }} />
-   </View>
-  
-     <Content>
-    </Content>
-    
-
-    <Footer style={{backgroundColor:'transparent'}}>
-      <Body style={{alignItems:'center'}}>
-      <Left>
-      <Item rounded style={{backgroundColor:'white'}}>
-            <Input/>
-      </Item>
-      </Left>
-      <Right>
-        <Button block success
-            onPress={() => this.props.navigation.navigate ('Homescreen') } 
-        >
-        </Button>
-      </Right>
-      </Body>
-    </Footer>
-
-</Container>
-)
-}
-}
-
-export default Chatscreen
-
+  onReceivedMessage = (msg) => {
+    console.log(msg);
+    const oldMessages = this.state.messages;
  
+    if (this.state.friend.user_id === msg.receiver_id) {
+   this.setState({ messages: oldMessages.concat(msg) });
+    }
+   updateRecdTime(this.state.user_id, this.state.friend.user_id);
+  }
+
+  joinUser() {
+    AsyncStorage.getItem('user')
+      .then(req => JSON.parse(req))
+      .then(json => { 
+        this.state.user = json; 
+        console.log(`inside joinuser, state ${JSON.stringify(this.state.user)}`); 
+      })
+      .catch(error => console.log(error));
+      console.log('going to connect');
+      
+      this.socket.on('connect', () => {
+        console.log('in CONNECT');
+        const userid = this.state.user_id;
+        this.socket.emit('myConnect', {
+          msg: 'User has connected',
+          fromuserid: userid
+        });
+      });
+
+      this.socket.on('disconnect', () => {
+        console.log('in DISCONNECT');
+        const userid = this.state.user_id;
+        this.socket.emit('myDisconnect', {
+          msg: 'User has disconnected',
+          fromuserid: userid
+        });
+      });
+
+      updateRecdTime(this.state.user_id, this.state.friend.user_id);
+  }
+
+  updateSize = (height) => {
+    console.log(height);
+    this.setState({
+      height
+    });
+  }
+ 
+  sendMessage(msgValue) {
+    console.log(this.state.value);
+    const friendid = this.state.friend.user_id.toString();
+    console.log('MS=', msgValue, 'from :', this.state.user_id, 'to:', friendid);
+    const now = new Date();
+    const msg = {
+			msg_text: msgValue,
+      sent_time: now,
+      sender_id: this.state.user_id,
+      receiver_id: friendid,
+    };
+    this.socket.emit('myMessage', msg);
+    
+		console.log('emitted my message');
+     this.state.messages.push(msg);
+ 
+    this.setState({
+      messages: this.state.messages,
+      value: ''
+  });
+}
+
+openEmoji() {
+  Keyboard.dismiss();
+  this.setState({ showPicker: true });
+}
+
+handlePick(emoji) {  
+  const { value } = this.state;
+  this.setState({ value: value + emoji });
+  console.log(emoji);
+ 
+}
+
+render() {
+    const { messages, user_id, value, height } = this.state;
+    const { navigate } = this.props.navigation;
+    let lastseentime = this.state.friend.lastseen;
+    console.log(lastseentime);
+    if (lastseentime !== null) {      
+      lastseentime = `lastseen ${new Date(this.state.friend.lastseen).toLocaleDateString("ja-JP")} at ${new Date(this.state.friend.lastseen).toLocaleTimeString().replace(/([\d]+:[\d]{2})(:[\d]{2})(.*)/, '$1$3')}`;
+      console.log(lastseentime);
+    }
+     
+    return (
+
+      <Container style={{ backgroundColor: '#fbebb0' }}>  
+        <Header style={{ backgroundColor: '#045e54' }}>
+        <Left>   
+        <Button
+          transparent
+          onPress={() => navigate('DP', { dp: imageurl + this.state.friend.displaypic })}
+        >         
+          <Thumbnail source={{ uri: imageurl + this.state.friend.displaypic }} small />
+        </Button>
+        </Left>
+            <Body>
+            <Title onPress={() => navigate('Contact', { friend: this.state.friend })}>{ this.state.friend.displayname }</Title>
+            <Text note>{ lastseentime }</Text>
+          
+          </Body>          
+          </Header>
+        <Content >
+          
+         <View style={{ flex: 1 }}>      
+         {
+           messages.map((message) => 
+          <MessageBubble key={message.msg_text} user_id={user_id} friend_id={this.state.friend_id} message={message} />
+         )}
+        
+         </View>
+         </Content> 
+         <View style={styles.inputBar}>
+         <Button transparent onPress={this.openEmoji.bind(this, value)}>
+           <Icon name='flower' active style={{ color: '#045e54' }} />
+        </Button>
+         <TextInput
+        placeholder="Type a message"
+        onChangeText={(value) => this.setState({ value })}
+        style={{ borderRadius: 10,
+              backgroundColor: 'white',
+              borderWidth: 1,
+              borderColor: 'gray',
+              flex: 1, 
+                      fontSize: 16,
+              paddingHorizontal: 10,
+              height }}
+        editable
+        multiline
+        value={value}
+        onContentSizeChange={(e) => this.updateSize(e.nativeEvent.contentSize.height)}
+        onSubmitEditing={Keyboard.dismiss}
+         />
+        <Button transparent onPress={this.sendMessage.bind(this, value)}>
+           <Icon name='send' active style={{ color: '#045e54' }} />
+        </Button>
+          
+          </View>
+         
+          <EmojiOverlay
+            style={{
+              height: 200,
+              backgroundColor: '#f4f4f4',
+              padding: 5
+            }}
+            horizontal
+            visible={this.state.showPicker}
+            onEmojiSelected={this.handlePick.bind(this)}
+            onTapOutside={() => this.setState({ showPicker: false })} 
+          />     
+      </Container>
+    );
+  }  
+}
+
+const styles = StyleSheet.create({
+
+  //ChatView
+
+  outer: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    backgroundColor: 'white'
+  },
+
+  messages: {
+    flex: 1
+  },
+
+  //InputBar
+
+  inputBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+  },
+
+  textBox: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'gray',
+    flex: 1,
+    fontSize: 16,
+    paddingHorizontal: 10
+  },
+
+  sendButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingLeft: 15,
+    marginLeft: 5,
+    paddingRight: 15,
+    borderRadius: 5,
+    backgroundColor: '#66db30'
+  },
+
+  
+});

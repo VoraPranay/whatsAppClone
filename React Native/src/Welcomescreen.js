@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import {  StyleSheet, View,Image,StatusBar } from "react-native";
 import { Body,Container,Content,Header,Footer ,Text, Button,H2,Title } from "native-base";
-
+import Loginscreen2 from './Screen.js';
 var backgroundImage = require('./assets/backgroundimage.jpg')
 
 
@@ -57,7 +57,7 @@ return (
     <Footer style={{backgroundColor:'transparent'}}>
       <Body style={{alignItems:'center'}}>
         <Button block success
-            onPress={() => this.props.navigation.navigate ('Loginscreen') } 
+            onPress={() => this.props.navigation.navigate ('Loginscreen2') } 
         >
         <Text>
               Agree and Continue 

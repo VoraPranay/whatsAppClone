@@ -1,5 +1,5 @@
 import { StackNavigator } from 'react-navigation';
-import LoginScreen from './LoginScreen';
+import Loginscreen from './Loginscreen2';
 import Homescreen from './Homescreen';
 import Chatscreen from './Chatscreen';
 import Contactstab from './Contactstab';
@@ -7,10 +7,10 @@ import DP from './DP';
 
 
 const  Screen= StackNavigator({
-    Login: { screen: Homescreen },
+  Welcomescreen: { screen: Welcomescreen },
+    Login: { screen: Loginscreen },
      Home: { screen: Homescreen },
-     ChatScreen: { screen: ChatScreen },
-     
+     Chatscreen: { screen: Chatscreen },     
      Contact: { screen: Contactstab },
      DP: { screen: DP }
     },

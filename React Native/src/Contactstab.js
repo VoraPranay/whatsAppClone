@@ -1,48 +1,59 @@
 import React, { Component } from 'react';
-import { Title,Container, Header, Content, List, ListItem, Left, Body, Right, Thumbnail,Icon, Text } from 'native-base';
+import { Header, Container, Content, Icon, Left, Right, View, Body, Text, Button, Thumbnail, Card, Form, Label, Item, Input } from 'native-base';
+
+const imageurl = 'https://filestore.alluvial22.hasura-app.io/v1/file/';
 export default class Contactstab extends Component {
-  
-  static navigationOptions = {
-    tabBarIcon: ({ tintColor }) => (
-        <Icon name="people" style={{color: tintColor}} />
-   ),
-      }
 
-      static navigationOptions = {
-        title: 'Contacts Tab',
-        header: null,
-        headerStyle:{ backgroundColor: 'white'},
-        headerTitleStyle:{ color: 'green'},
-        }
-  render() {
-    return (
-      <Container>
-        <Header style={{backgroundColor:'green'}}>
+    state = {
+        contact: this.props.navigation.state.params.friend
+    }
+   
+    render() {
+        const contact = this.state.contact;
+        return (
+    <Container >
 
-            <Body>
-               <Title style={{color:'white'}}> Contacts tab</Title>
+    <Header style={{ backgroundColor: '#045e54' }}>
+    <Left>
+        <Button transparent onPress={() => this.props.navigation.goBack()}>
+        <Icon name="arrow-back" style={{ color: '#fbebb0' }} />
+        </Button>
+    </Left>
+    <Body />
+
+    <Right />
+    </Header>
+    <Content style={{ backgroundColor: '#fbebb0' }} contentContainerStyle={{ justifyContent: 'center', margin: 40 }}>       
+        <Card >
+            
+            <Body style={{ padding: 20 }}>
+            <Button
+            transparent
+            style={{ height: 150, width: 150 }}
+            onPress={() => this.props.navigation.navigate('DP', { dp: imageurl + contact.displaypic })}
+            >      
+                <Thumbnail style={{ height: 150, width: 150 }} large source={{ uri: imageurl + contact.displaypic }} />
+            </Button>    
             </Body>
-            <Right />
-        </Header>
-          
-        
-        <Content>
-          <List>
-            <ListItem avatar>
-              <Left>
-                <Thumbnail source={require('./assets/wallpaper.jpg')} />
-              </Left>
-              <Body>
-                <Text>Kumar Pratik</Text>
-                <Text note>Doing what you like will always keep you happy . .</Text>
-              </Body>
-              <Right>
-                <Text note>Mobile</Text>
-              </Right>
-            </ListItem>
-          </List>
-        </Content>
-      </Container>
-    );
-  }
+            
+            </Card>
+            <Form>
+                <Item stackedLabel>
+                    <Label>Username</Label>
+                    <Text>{contact.displayname}</Text>  
+                </Item>
+                <Item stackedLabel>
+                    <Label>Status</Label>
+                    <Text>{contact.status}</Text>  
+                </Item>
+                <Item stackedLabel>
+                    <Label>email id</Label>
+                    <Text>{contact.emailid}</Text>  
+                </Item>
+            </Form>
+            <View style={{ height: 10 }} />       
+            </Content>
+        </Container>
+        );
+    }
 }
